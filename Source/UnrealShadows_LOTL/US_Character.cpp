@@ -10,6 +10,8 @@
 #include "GameFramework/Controller.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "US_CharacterStats.h"
+#include "Engine/DataTable.h"
 
 // Sets default values
 AUS_Character::AUS_Character()
@@ -48,6 +50,8 @@ AUS_Character::AUS_Character()
 	GetCharacterMovement()->MaxWalkSpeed = 500.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
+
+	UpdateCharacterStats(1);
 }
 
 // Called when the game starts or when spawned
@@ -124,16 +128,38 @@ void AUS_Character::Look(const FInputActionValue& Value)
 void AUS_Character::SprintStart(const FInputActionValue& Value)
 {
 	GEngine->AddOnScreenDebugMessage(2, 5.f, FColor::Blue, TEXT("SprintStart"));
-	GetCharacterMovement()->MaxWalkSpeed = 3000.f;
+	if (GetCharacterStats())
+	{
+		GetCharacterMovement()->MaxWalkSpeed = GetCharacterStats()->SprintSpeed;
+	}
 }
 
 void AUS_Character::SprintEnd(const FInputActionValue& Value)
 {
 	GEngine->AddOnScreenDebugMessage(2, 5.f, FColor::Blue, TEXT("SprintEnd"));
-	GetCharacterMovement()->MaxWalkSpeed = 500.f;
+	if (GetCharacterStats()) 
+	{
+		GetCharacterMovement()->MaxWalkSpeed = GetCharacterStats()->WalkSpeed;
+	}
 }
 
 void AUS_Character::Interact(const FInputActionValue& Value)
 {
 	GEngine->AddOnScreenDebugMessage(3, 5.f, FColor::Red, TEXT("Interact"));
+}
+
+void AUS_Character::UpdateCharacterStats(int32 CharacterLevel)
+{
+	if (CharacterDataTable) {
+		TArray<FUS_CharacterStats*> CharacterStatsRows;
+		CharacterDataTable->GetAllRows<FUS_CharacterStats>(TEXT("US_Character"), CharacterStatsRows);
+
+		if (CharacterStatsRows.Num() > 0) 
+		{
+			const auto NewCharacterLevel = FMath::Clamp(CharacterLevel, 1, CharacterStatsRows.Num());
+			CharacterStats = CharacterStatsRows[NewCharacterLevel - 1];
+
+			GetCharacterMovement()->MaxWalkSpeed = GetCharacterStats()->WalkSpeed;
+		}
+	}
 }
