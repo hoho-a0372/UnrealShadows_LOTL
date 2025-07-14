@@ -12,6 +12,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "US_CharacterStats.h"
 #include "Engine/DataTable.h"
+#include "US_Interactable.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 // Sets default values
 AUS_Character::AUS_Character()
@@ -74,6 +76,40 @@ void AUS_Character::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// 트레이스 실행 권한 확인 -> 클라이언트 부정행위 방지
+	if (GetLocalRole() != ROLE_Authority) return;
+
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.bTraceComplex = true;
+	QueryParams.AddIgnoredActor(this);
+
+	auto SphereRadius = 50.f;
+	auto StartLocation = GetActorLocation() + GetActorForwardVector() * 150.f;
+	auto EndLocation = StartLocation + GetActorForwardVector() * 500.f;
+
+	auto IsHit = UKismetSystemLibrary::SphereTraceSingle(
+		GetWorld(),
+		StartLocation,
+		EndLocation,
+		SphereRadius,
+		UEngineTypes::ConvertToTraceType(ECC_WorldStatic),
+		false,
+		TArray<AActor*>(),
+		EDrawDebugTrace::ForOneFrame,
+		HitResult,
+		true
+	);
+
+	if (IsHit && HitResult.GetActor()->GetClass()->ImplementsInterface(UUS_Interactable::StaticClass()))
+	{
+		DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, SphereRadius, 12, FColor::Magenta, false, 1.f);
+		InteractableActor = HitResult.GetActor();
+	}
+	else
+	{
+		InteractableActor = nullptr;
+	}
 }
 
 // Called to bind functionality to input
@@ -131,15 +167,40 @@ void AUS_Character::SprintStart(const FInputActionValue& Value)
 	SprintStart_Server();
 }
 
+void AUS_Character::SprintStart_Server_Implementation() 
+{
+	if (GetCharacterStats())
+	{
+		GetCharacterMovement()->MaxWalkSpeed = GetCharacterStats()->SprintSpeed;
+	}
+}
+
 void AUS_Character::SprintEnd(const FInputActionValue& Value)
 {
 	GEngine->AddOnScreenDebugMessage(2, 5.f, FColor::Blue, TEXT("SprintEnd"));
 	SprintEnd_Server();
 }
 
+void AUS_Character::SprintEnd_Server_Implementation()
+{
+	if (GetCharacterStats())
+	{
+		GetCharacterMovement()->MaxWalkSpeed = GetCharacterStats()->WalkSpeed;
+	}
+}
+
 void AUS_Character::Interact(const FInputActionValue& Value)
 {
 	GEngine->AddOnScreenDebugMessage(3, 5.f, FColor::Red, TEXT("Interact"));
+	Interact_Server();
+}
+
+void AUS_Character::Interact_Server_Implementation() 
+{
+	if (InteractableActor)
+	{
+		IUS_Interactable::Execute_Interact(InteractableActor, this);
+	}
 }
 
 void AUS_Character::UpdateCharacterStats(int32 CharacterLevel)
@@ -165,21 +226,5 @@ void AUS_Character::UpdateCharacterStats(int32 CharacterLevel)
 				SprintStart_Server();
 			}
 		}
-	}
-}
-
-void AUS_Character::SprintStart_Server_Implementation() 
-{
-	if (GetCharacterStats())
-	{
-		GetCharacterMovement()->MaxWalkSpeed = GetCharacterStats()->SprintSpeed;
-	}
-}
-
-void AUS_Character::SprintEnd_Server_Implementation()
-{
-	if (GetCharacterStats())
-	{
-		GetCharacterMovement()->MaxWalkSpeed = GetCharacterStats()->WalkSpeed;
 	}
 }

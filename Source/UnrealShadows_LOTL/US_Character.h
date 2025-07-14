@@ -32,7 +32,11 @@ class UNREALSHADOWS_LOTL_API AUS_Character : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Data", meta = (AllowPrivateAccess = "true"))
 	class UDataTable* CharacterDataTable;
 
+	UPROPERTY()
+	AActor* InteractableActor;
+
 	struct FUS_CharacterStats* CharacterStats;
+
 
 public:
 	// Sets default values for this character's properties
@@ -46,14 +50,19 @@ protected:
 	// Called by each input actions
 	void Move(const struct FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
-	void SprintStart(const FInputActionValue& Value);
-	void SprintEnd(const FInputActionValue& Value);
-	void Interact(const FInputActionValue& Value);
 
+	void SprintStart(const FInputActionValue& Value);
 	UFUNCTION(Server, Reliable)
 	void SprintStart_Server();
+
+	void SprintEnd(const FInputActionValue& Value);
 	UFUNCTION(Server, Reliable)
 	void SprintEnd_Server();
+
+	void Interact(const FInputActionValue& Value);
+	UFUNCTION(Server, Reliable)
+	void Interact_Server();
+
 
 public:	
 	// Called every frame
