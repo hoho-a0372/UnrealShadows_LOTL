@@ -50,6 +50,11 @@ protected:
 	void SprintEnd(const FInputActionValue& Value);
 	void Interact(const FInputActionValue& Value);
 
+	UFUNCTION(Server, Reliable)
+	void SprintStart_Server();
+	UFUNCTION(Server, Reliable)
+	void SprintEnd_Server();
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
