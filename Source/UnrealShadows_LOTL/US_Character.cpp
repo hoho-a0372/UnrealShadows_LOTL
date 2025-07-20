@@ -14,6 +14,8 @@
 #include "Engine/DataTable.h"
 #include "US_Interactable.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Components/PawnNoiseEmitterComponent.h"
+#include "US_WeaponProjectileComponent.h"
 
 // Sets default values
 AUS_Character::AUS_Character()
@@ -31,6 +33,15 @@ AUS_Character::AUS_Character()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom);
 	FollowCamera->bUsePawnControlRotation = false;
+
+	NoiseEmitter = CreateDefaultSubobject<UPawnNoiseEmitterComponent>(TEXT("NoiseEmitter"));
+	NoiseEmitter->NoiseLifetime = 0.01f;
+
+	Weapon = CreateDefaultSubobject<UUS_WeaponProjectileComponent>(TEXT("Weapon"));
+	Weapon->SetupAttachment(RootComponent);
+	Weapon->SetRelativeLocation(FVector(120.f, 70.f, 0.f));
+	Weapon->SetIsReplicated(true);
+
 	
 	// 캐릭터 액터 및 컴포넌트 기본값 변경
 	bUseControllerRotationPitch = false;
@@ -52,8 +63,6 @@ AUS_Character::AUS_Character()
 	GetCharacterMovement()->MaxWalkSpeed = 500.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
-
-	UpdateCharacterStats(1);
 }
 
 // Called when the game starts or when spawned
@@ -69,6 +78,7 @@ void AUS_Character::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+	UpdateCharacterStats(1);
 }
 
 // Called every frame
@@ -109,6 +119,16 @@ void AUS_Character::Tick(float DeltaTime)
 	else
 	{
 		InteractableActor = nullptr;
+	}
+
+	if (GetCharacterStats() && GetCharacterMovement()->MaxWalkSpeed == GetCharacterStats()->SprintSpeed)
+	{
+		auto Noise = 1.f;
+		if (GetCharacterStats()->StealthMultiplier)
+		{
+			Noise = Noise / GetCharacterStats()->StealthMultiplier;
+		}
+		NoiseEmitter->MakeNoise(this, Noise, GetActorLocation());
 	}
 }
 
@@ -167,26 +187,10 @@ void AUS_Character::SprintStart(const FInputActionValue& Value)
 	SprintStart_Server();
 }
 
-void AUS_Character::SprintStart_Server_Implementation() 
-{
-	if (GetCharacterStats())
-	{
-		GetCharacterMovement()->MaxWalkSpeed = GetCharacterStats()->SprintSpeed;
-	}
-}
-
 void AUS_Character::SprintEnd(const FInputActionValue& Value)
 {
 	GEngine->AddOnScreenDebugMessage(2, 5.f, FColor::Blue, TEXT("SprintEnd"));
 	SprintEnd_Server();
-}
-
-void AUS_Character::SprintEnd_Server_Implementation()
-{
-	if (GetCharacterStats())
-	{
-		GetCharacterMovement()->MaxWalkSpeed = GetCharacterStats()->WalkSpeed;
-	}
 }
 
 void AUS_Character::Interact(const FInputActionValue& Value)
@@ -195,11 +199,37 @@ void AUS_Character::Interact(const FInputActionValue& Value)
 	Interact_Server();
 }
 
+void AUS_Character::SprintStart_Server_Implementation() 
+{
+	SprintStart_Client();
+}
+
+void AUS_Character::SprintEnd_Server_Implementation()
+{
+	SprintEnd_Client();
+}
+
 void AUS_Character::Interact_Server_Implementation() 
 {
 	if (InteractableActor)
 	{
 		IUS_Interactable::Execute_Interact(InteractableActor, this);
+	}
+}
+
+void AUS_Character::SprintStart_Client_Implementation()
+{
+	if (GetCharacterStats())
+	{
+		GetCharacterMovement()->MaxWalkSpeed = GetCharacterStats()->SprintSpeed;
+	}
+}
+
+void AUS_Character::SprintEnd_Client_Implementation()
+{
+	if (GetCharacterStats())
+	{
+		GetCharacterMovement()->MaxWalkSpeed = GetCharacterStats()->WalkSpeed;
 	}
 }
 

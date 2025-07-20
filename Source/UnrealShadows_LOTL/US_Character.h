@@ -32,11 +32,16 @@ class UNREALSHADOWS_LOTL_API AUS_Character : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Data", meta = (AllowPrivateAccess = "true"))
 	class UDataTable* CharacterDataTable;
 
+	struct FUS_CharacterStats* CharacterStats;
+
 	UPROPERTY()
 	AActor* InteractableActor;
 
-	struct FUS_CharacterStats* CharacterStats;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stealth", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPawnNoiseEmitterComponent> NoiseEmitter;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<class UUS_WeaponProjectileComponent> Weapon;
 
 public:
 	// Sets default values for this character's properties
@@ -52,16 +57,20 @@ protected:
 	void Look(const FInputActionValue& Value);
 
 	void SprintStart(const FInputActionValue& Value);
+	void SprintEnd(const FInputActionValue& Value);
+	void Interact(const FInputActionValue& Value);
+
 	UFUNCTION(Server, Reliable)
 	void SprintStart_Server();
-
-	void SprintEnd(const FInputActionValue& Value);
 	UFUNCTION(Server, Reliable)
 	void SprintEnd_Server();
-
-	void Interact(const FInputActionValue& Value);
 	UFUNCTION(Server, Reliable)
 	void Interact_Server();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void SprintStart_Client();
+	UFUNCTION(NetMulticast, Reliable)
+	void SprintEnd_Client();
 
 
 public:	
@@ -77,4 +86,6 @@ public:
 	void UpdateCharacterStats(int32 CharacterLevel);
 
 	FORCEINLINE FUS_CharacterStats* GetCharacterStats() const { return CharacterStats; }
+
+	FORCEINLINE UUS_WeaponProjectileComponent* GetWeapon() const { return Weapon; }
 };
